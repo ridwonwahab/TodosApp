@@ -2,6 +2,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 
 from app import create_app
 
@@ -47,7 +48,7 @@ class TodoAppTests(unittest.TestCase):
 
     def test_can_complete_filter_and_clear_task(self):
         self.client.post("/todos", data={"title": "Take a walk"})
-        with sqlite3.connect(self.app.config["DATABASE"]) as connection:
+        with closing(sqlite3.connect(self.app.config["DATABASE"])) as connection:
             todo_id = connection.execute("SELECT id FROM todos").fetchone()[0]
 
         self.client.post(f"/todos/{todo_id}/toggle")
@@ -55,14 +56,14 @@ class TodoAppTests(unittest.TestCase):
         active = self.client.get("/?filter=active")
 
         self.assertIn(b"Take a walk", completed.data)
-        self.assertIn(b"Nothing completed yet", active.data)
+        self.assertIn(b"All done for now", active.data)
 
         self.client.post("/todos/clear-completed")
         self.assertIn(b"A fresh start", self.client.get("/").data)
 
     def test_can_delete_task(self):
         self.client.post("/todos", data={"title": "Water the plants"})
-        with sqlite3.connect(self.app.config["DATABASE"]) as connection:
+        with closing(sqlite3.connect(self.app.config["DATABASE"])) as connection:
             todo_id = connection.execute("SELECT id FROM todos").fetchone()[0]
 
         response = self.client.post(f"/todos/{todo_id}/delete", follow_redirects=True)
